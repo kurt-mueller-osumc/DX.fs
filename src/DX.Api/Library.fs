@@ -36,49 +36,51 @@ module Common =
     /// The token used to access the DNAnexus API
     type ApiToken = ApiToken of string
 
-module Search =
+module DataObjects =
+    open Common
 
     type ProjectId = ProjectId of string
     type ObjectId = ObjectId of string
 
-    module FindDataObjects =
-        open Common
-        type Request = {
-            ApiToken: ApiToken
-            ProjectId: ProjectId
-            StartingAt: ObjectId option
+    type Request = {
+        ApiToken: ApiToken
+        ProjectId: ProjectId
+        StartingAt: ObjectId option
+    }
+
+    module Reponse =
+        type DataObjectJson = {
+            project: string
+            id: string
+            describe: {| id: string
+                         project: string
+                         ``class``: string
+                         sponsored: bool
+                         name: string
+                         types: string list
+                         state: string
+                         hidden: bool
+                         links: string list
+                         folder: string
+                         tags: string list
+                         created: uint64
+                         modified: uint64
+                         createdBy: {| user: string
+                                       job: string
+                                       executable: string |}
+                         media: string
+                         archivalState: string
+                         size: uint64
+                         cloudAccount: string |}
         }
 
-        module Reponse =
-            type DataObjectJson = {
-                project: string
-                id: string
-                describe: {| id: string
-                             project: string
-                             ``class``: string
-                             sponsored: bool
-                             name: string
-                             types: string list
-                             state: string
-                             hidden: bool
-                             links: string list
-                             folder: string
-                             tags: string list
-                             created: uint64
-                             modified: uint64
-                             createdBy: {| user: string
-                                           job: string
-                                           executable: string |}
-                             media: string
-                             archivalState: string
-                             size: uint64
-                             cloudAccount: string |}
-            }
+        /// The json repsonse if the API call is successful
+        type Json = {
+            /// The next file id to start the search at
+            next: {| project: string
+                     id: string |}
+            results: DataObjectJson list
+        }
 
-            /// The json repsonse if the API call is successful
-            type Json = {
-                /// The next file id to start the search at
-                next: {| project: string
-                         id: string |}
-                results: DataObjectJson list
-            }
+        let deserialize jsonText =
+            JsonConvert.DeserializeObject<Json>(jsonText)
