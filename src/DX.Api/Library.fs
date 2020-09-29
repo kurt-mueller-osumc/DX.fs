@@ -104,7 +104,7 @@ module DataObjects =
                          cloudAccount: string |}
         }
 
-        /// The json repsonse if the API call is successful
+        /// The json response if the API call is successful
         type BodyJson = {
             /// The next file id to start the search at
             next: {| project: string
