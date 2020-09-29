@@ -36,6 +36,13 @@ module Common =
     /// The token used to access the DNAnexus API
     type ApiToken = ApiToken of string
 
+module Request =
+    open Common
+
+    let headers (ApiToken apiToken) =
+        [ ContentType HttpContentTypes.Json
+          "Authorization", ("Bearer " + apiToken) ]
+
 module DataObjects =
     open Common
 
@@ -47,6 +54,31 @@ module DataObjects =
         ProjectId: ProjectId
         StartingAt: ObjectId option
     }
+
+    module Request =
+        let serializeBody request =
+            let (ProjectId projectId) = request.ProjectId
+            let baseJson = {| scope = {| project = projectId
+                                         recurse = true |}
+                              describe = true |}
+
+            match request.StartingAt with
+                | Some (ObjectId objectId) ->
+                    let json = {| baseJson with starting = {| project = projectId
+                                                              id = objectId |} |}
+
+                    JsonConvert.SerializeObject(json)
+
+                | None ->
+                    JsonConvert.SerializeObject(baseJson)
+        
+        let request request =
+            Http.Request
+                ( "https://api.dnanexus.com/system/findDataObjects",
+                  httpMethod = "POST",
+                  silentHttpErrors = true,
+                  headers = Request.headers request.ApiToken,
+                  body = TextRequest (serializeBody request))
 
     module Reponse =
         type DataObjectJson = {
