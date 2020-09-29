@@ -5,30 +5,30 @@ open FSharp.Data.HttpRequestHeaders
 open Newtonsoft.Json
 
 module Base =
-    module Response =
-        module Error =
-            /// An error response returned by the DNAnexus api
-            type Json = 
-                { error: {| ``type`` : string
-                            message : string |} }
-            
-            /// Parse an error response into json
-            let parseJson json =
-                JsonConvert.DeserializeObject<Json>(json) 
+    type ErrorResponse = 
+        { error: {| ``type`` : string
+                    message : string |} }
 
-        /// A response from DNAnexus API
-        type Response<'a> =
-            | InvalidAuthentication of Error.Json
-            | ResourceNotFound of Error.Json
-            | InvalidResponseType of string
-            | Unknown of string
-            | Valid of 'a
+    /// A response from DNAnexus API
+    type Response<'a> =
+        | InvalidAuthentication of ErrorResponse
+        | ResourceNotFound of ErrorResponse
+        | InvalidResponseType of string
+        | Unknown of string
+        | Valid of 'a
+
+    module Response =
+        /// An error response returned by the DNAnexus api
+        module Error =
+            /// Parse an error response into json
+            let deserialize body =
+                JsonConvert.DeserializeObject<ErrorResponse>(body) 
 
         /// Parse a response from the DNAnexus API
         let parse parseFn (response:HttpResponse) =
             match (response.StatusCode, response.Body) with
-            | (401, Text errorJson) -> InvalidAuthentication (Error.parseJson errorJson)
-            | (404, Text errorJson) -> ResourceNotFound (Error.parseJson errorJson)
+            | (401, Text error) -> InvalidAuthentication (Error.deserialize error)
+            | (404, Text error) -> ResourceNotFound (Error.deserialize error)
             | (200, Text jsonText) -> Valid (parseFn jsonText)
             | (_ , Text responseText) -> Unknown responseText
             | (_, Binary bytes) -> InvalidResponseType ("Binary response: " + System.Text.Encoding.ASCII.GetString(bytes))
@@ -42,11 +42,13 @@ module Base =
               "Authorization", ("Bearer " + apiToken) ]
 
 module DataObjects =
+    open Base
+
     type ProjectId = ProjectId of string
     type ObjectId = ObjectId of string
 
     type Request = {
-        ApiToken: Base.ApiToken
+        ApiToken: ApiToken
         ProjectId: ProjectId
         StartingAt: ObjectId option
     }
@@ -114,7 +116,7 @@ module DataObjects =
             JsonConvert.DeserializeObject<BodyJson>(jsonText)
         
         let parse =
-            Base.Response.parse deserializeBody
+            Response.parse deserializeBody
 
     let find = 
-        Request.initiate >> Base.Response.parse Response.deserializeBody
+        Request.initiate >> Response.parse
